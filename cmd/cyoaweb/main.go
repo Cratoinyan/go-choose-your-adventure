@@ -2,14 +2,16 @@ package main
 
 import (
 	"cyoa"
-	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 )
 
 func main() {
 	fPath := flag.String("file", "story.json", "JSON file containing the story")
+	port := flag.Int("port", 3000, "port to start the server on")
 	flag.Parse()
 
 	file, err := os.Open(*fPath)
@@ -18,13 +20,14 @@ func main() {
 		panic(err)
 	}
 
-	decoder := json.NewDecoder(file)
+	story, err := cyoa.JsonStory(file)
 
-	var story cyoa.Story
-
-	if err := decoder.Decode(&story); err != nil {
+	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("%+v\n", story)
+	h := cyoa.NewHandler(story)
+
+	fmt.Printf("Starting the server on port %d\n", *port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), h))
 }
