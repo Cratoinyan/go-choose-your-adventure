@@ -87,8 +87,14 @@ func WithTemplate(t *template.Template) HandlerOption {
 	}
 }
 
+func WithPathFunc(fn func(r *http.Request) string) HandlerOption {
+	return func(h *handler) {
+		h.pathFunc = fn
+	}
+}
+
 func NewHandler(s Story, opts ...HandlerOption) http.Handler {
-	h := handler{s, tpl}
+	h := handler{s, tpl, defaultPathFunc}
 
 	for _, opt := range opts {
 		opt(&h)
@@ -98,17 +104,13 @@ func NewHandler(s Story, opts ...HandlerOption) http.Handler {
 }
 
 type handler struct {
-	s Story
-	t *template.Template
+	s        Story
+	t        *template.Template
+	pathFunc func(*http.Request) string
 }
 
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimSpace(r.URL.Path)
-	if path == "" || path == "/" {
-		path = "/intro"
-	}
-
-	path = path[1:]
+	path := h.pathFunc(r)
 
 	if chapter, ok := h.s[path]; ok {
 		err := h.t.Execute(w, chapter)
@@ -120,6 +122,15 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Error(w, "Chapter not found.", http.StatusNotFound)
 
+}
+
+func defaultPathFunc(r *http.Request) string {
+	path := strings.TrimSpace(r.URL.Path)
+	if path == "" || path == "/" {
+		path = "/intro"
+	}
+
+	return path[1:]
 }
 
 func JsonStory(reader io.Reader) (Story, error) {
